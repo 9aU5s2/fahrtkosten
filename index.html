@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  
+  <title>Fahrtkosten-App</title>
+
+  <!-- 📲 PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111111">
+
+  <!-- 🚗 ICON -->
+  <link rel="icon" type="image/svg+xml" href="car-icon.svg">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 420px;
+      min-height: 100vh;
+      background: white;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      margin-bottom: 20px;
+    }
+
+    section {
+      background: #fff;
+      padding: 12px;
+      margin-bottom: 14px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    h2 {
+      font-size: 16px;
+      margin: 0 0 10px 0;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    button {
+      background: #111;
+      color: white;
+      border: none;
+      font-weight: bold;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    ul {
+      padding-left: 0;
+      list-style: none;
+    }
+
+    li {
+      background: #f5f5f5;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 6px 10px;
+      font-size: 12px;
+      margin-top: 6px;
+      background: #333;
+      width: auto;
+      display: inline-block;
+    }
+
+    .inline {
+      display: inline-flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    #balance p {
+      font-size: 16px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="app">
+
+<h1>🚗 Fahrtkosten-App</h1>
+
+<!-- 1 -->
+<section>
+  <h2>Spieltag anlegen</h2>
+  <input type="date" id="date">
+  <input type="text" id="opponent" placeholder="Gegner">
+  <input type="number" id="distance" placeholder="Distanz (km)">
+  <input type="number" id="consumption" value="7" placeholder="Verbrauch">
+  <input type="number" id="fuelPrice" value="1.8" placeholder="Spritpreis">
+  <button onclick="addMatchday()">Speichern</button>
+</section>
+
+<!-- 2 -->
+<section>
+  <h2>Spieltage</h2>
+  <ul id="matchdays"></ul>
+</section>
+
+<!-- 3 -->
+<section>
+  <h2>Person anlegen</h2>
+  <input type="text" id="personName" placeholder="Name">
+  <button onclick="addPerson()">Speichern</button>
+</section>
+
+<!-- 4 -->
+<section>
+  <h2>Personen</h2>
+  <ul id="persons"></ul>
+</section>
+
+<!-- 5 -->
+<section>
+  <h2>Fahrer*in</h2>
+  <select id="driverMatch"></select>
+  <select id="driverPerson"></select>
+  <button onclick="addDriver()">Hinzufügen</button>
+</section>
+
+<!-- 6 -->
+<section>
+  <h2>Mitfahrer*in</h2>
+  <select id="passengerMatch"></select>
+  <select id="passengerPerson"></select>
+  <button onclick="addPassenger()">Hinzufügen</button>
+</section>
+
+<!-- 7 -->
+<section>
+  <h2>Übersicht</h2>
+  <ul id="overview"></ul>
+</section>
+
+<!-- 8 -->
+<section>
+  <h2>Kontostand</h2>
+  <button onclick="calc()">Berechnen</button>
+  <div id="balance"></div>
+</section>
+
+</div>
+
+<script>
+let matchdays = JSON.parse(localStorage.getItem("matchdays") || "[]");
+let persons = JSON.parse(localStorage.getItem("persons") || "[]");
+let drivers = JSON.parse(localStorage.getItem("drivers") || "[]");
+let passengers = JSON.parse(localStorage.getItem("passengers") || "[]");
+
+function save() {
+  localStorage.setItem("matchdays", JSON.stringify(matchdays));
+  localStorage.setItem("persons", JSON.stringify(persons));
+  localStorage.setItem("drivers", JSON.stringify(drivers));
+  localStorage.setItem("passengers", JSON.stringify(passengers));
+  render();
+}
+
+/* ADD */
+function addMatchday() {
+  matchdays.push({
+    id: Date.now(),
+    date: date.value,
+    opponent: opponent.value,
+    distance: +distance.value,
+    consumption: +consumption.value,
+    fuelPrice: +fuelPrice.value
+  });
+  save();
+}
+
+function addPerson() {
+  persons.push({
+    id: Date.now(),
+    name: personName.value
+  });
+  personName.value = "";
+  save();
+}
+
+function addDriver() {
+  if (driverMatch.value === "none" || driverPerson.value === "none") return;
+  drivers.push({
+    matchId: driverMatch.value,
+    personId: driverPerson.value
+  });
+  save();
+}
+
+function addPassenger() {
+  if (passengerMatch.value === "none" || passengerPerson.value === "none") return;
+  passengers.push({
+    matchId: passengerMatch.value,
+    personId: passengerPerson.value
+  });
+  save();
+}
+
+/* DELETE */
+function deleteMatch(id){
+  matchdays = matchdays.filter(m => m.id != id);
+  save();
+}
+
+function deletePerson(id){
+  persons = persons.filter(p => p.id != id);
+  save();
+}
+
+function removeDriver(matchId, personId){
+  drivers = drivers.filter(d => !(d.matchId==matchId && d.personId==personId));
+  save();
+}
+
+function removePassenger(matchId, personId){
+  passengers = passengers.filter(p => !(p.matchId==matchId && p.personId==personId));
+  save();
+}
+
+/* EDIT */
+function editMatch(id){
+  let m = matchdays.find(x => x.id == id);
+  if (!m) return;
+
+  m.date = prompt("Datum", m.date);
+  m.opponent = prompt("Gegner", m.opponent);
+  m.distance = +prompt("Distanz", m.distance);
+  m.consumption = +prompt("Verbrauch", m.consumption);
+  m.fuelPrice = +prompt("Spritpreis", m.fuelPrice);
+
+  save();
+}
+
+/* CALC */
+function calc() {
+  let result = {};
+
+  matchdays.forEach(m => {
+    let costPerDriver = (2 * m.distance / 100 * m.consumption) * m.fuelPrice;
+
+    let matchDrivers = drivers.filter(d => d.matchId == m.id);
+    let matchPassengers = passengers.filter(p => p.matchId == m.id);
+
+    let driverCount = matchDrivers.length;
+    let passengerCount = matchPassengers.length;
+
+    if (driverCount === 0 || passengerCount === 0) return;
+
+    matchDrivers.forEach(d => {
+      let name = persons.find(p => p.id == d.personId)?.name;
+      if (!result[name]) result[name] = 0;
+      result[name] += costPerDriver;
+    });
+
+    let totalDriverCosts = costPerDriver * driverCount;
+    let passengerShare = totalDriverCosts / passengerCount;
+
+    matchPassengers.forEach(p => {
+      let name = persons.find(x => x.id == p.personId)?.name;
+      if (!result[name]) result[name] = 0;
+      result[name] -= passengerShare;
+    });
+  });
+
+  balance.innerHTML = Object.entries(result)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([n,v]) => `<p>${n}: ${v.toFixed(2)} €</p>`)
+    .join("");
+}
+
+/* RENDER */
+function render() {
+
+  matchdays.sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  document.getElementById("matchdays").innerHTML =
+    matchdays.map(m => `
+      <li>
+        ${m.date} vs ${m.opponent}
+        <br>
+        <button class="btn" onclick="editMatch(${m.id})">Bearbeiten</button>
+        <button class="btn" onclick="deleteMatch(${m.id})">Löschen</button>
+      </li>
+    `).join("");
+
+  let sortedPersons = [...persons].sort((a,b)=>a.name.localeCompare(b.name));
+
+  document.getElementById("persons").innerHTML =
+    sortedPersons.map(p => `
+      <li>
+        ${p.name}
+        <button class="btn" onclick="deletePerson(${p.id})">Löschen</button>
+      </li>
+    `).join("");
+
+  const defaultOpt = `<option value="none">Bitte wählen...</option>`;
+
+  driverMatch.innerHTML = defaultOpt +
+    matchdays.map(m => `<option value="${m.id}">${m.date} vs ${m.opponent}</option>`).join("");
+
+  passengerMatch.innerHTML = defaultOpt +
+    matchdays.map(m => `<option value="${m.id}">${m.date} vs ${m.opponent}</option>`).join("");
+
+  driverPerson.innerHTML = defaultOpt +
+    sortedPersons.map(p => `<option value="${p.id}">${p.name}</option>`).join("");
+
+  passengerPerson.innerHTML = defaultOpt +
+    sortedPersons.map(p => `<option value="${p.id}">${p.name}</option>`).join("");
+
+  document.getElementById("overview").innerHTML =
+    matchdays.map(m => {
+
+      let driverList = drivers
+        .filter(x=>x.matchId==m.id)
+        .map(x=>{
+          let name = persons.find(p=>p.id==x.personId)?.name;
+          return `<span class="inline">${name}
+            <button class="btn" onclick="removeDriver(${m.id},${x.personId})">x</button>
+          </span>`;
+        }).join(" ");
+
+      let passengerList = passengers
+        .filter(x=>x.matchId==m.id)
+        .map(x=>{
+          let name = persons.find(p=>p.id==x.personId)?.name;
+          return `<span class="inline">${name}
+            <button class="btn" onclick="removePassenger(${m.id},${x.personId})">x</button>
+          </span>`;
+        }).join(" ");
+
+      return `
+        <li>
+          ${m.date} vs ${m.opponent}
+          <br><b>Fahrer*in:</b> <div class="inline">${driverList || "-"}</div>
+          <br><b>Mitfahrer*in:</b> <div class="inline">${passengerList || "-"}</div>
+        </li>
+      `;
+    }).join("");
+}
+
+render();
+
+/* 📲 SERVICE WORKER REGISTRIEREN */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
